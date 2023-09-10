@@ -48,7 +48,7 @@ find_package(Boost COMPONENTS filesystem program_options system thread regex REQ
 find_package(Lua REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(ICU COMPONENTS uc REQUIRED)
-find_package(Abseil REQUIRED)
+find_package(absl REQUIRED)
 
 set(scylla_build_dir "${CMAKE_BINARY_DIR}/build/${BUILD_TYPE}")
 set(scylla_gen_build_dir "${scylla_build_dir}/gen")
@@ -546,7 +546,6 @@ set(scylla_sources
     redis/query_processor.cc
     redis/query_utils.cc
     redis/server.cc
-    redis/service.cc
     redis/stats.cc
     release.cc
     repair/repair.cc
@@ -616,12 +615,10 @@ set(scylla_sources
     thrift/server.cc
     thrift/thrift_validation.cc
     timeout_config.cc
-    tools/scylla-sstable-index.cc
     tools/scylla-types.cc
     tracing/traced_file.cc
     tracing/trace_keyspace_helper.cc
     tracing/trace_state.cc
-    tracing/tracing_backend_registry.cc
     tracing/tracing.cc
     transport/controller.cc
     transport/cql_protocol_extension.cc
@@ -649,7 +646,6 @@ set(scylla_sources
     utils/file_lock.cc
     utils/generation-number.cc
     utils/gz/crc_combine.cc
-    utils/gz/gen_crc_combine_table.cc
     utils/human_readable.cc
     utils/i_filter.cc
     utils/large_bitset.cc
@@ -738,25 +734,6 @@ target_include_directories(scylla PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     libdeflate
     "${scylla_gen_build_dir}")
-
-###
-### Create crc_combine_table helper executable.
-### Use it to generate crc_combine_table.cc to be used in scylla at build time.
-###
-add_executable(crc_combine_table utils/gz/gen_crc_combine_table.cc)
-target_link_libraries(crc_combine_table PRIVATE seastar)
-target_include_directories(crc_combine_table PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_compile_options(crc_combine_table PRIVATE
-    -std=gnu++20
-    ${cxx_coro_flag}
-    ${target_arch_flag})
-add_dependencies(scylla crc_combine_table)
-
-# Generate an additional source file at build time that is needed for Scylla compilation
-add_custom_command(OUTPUT "${scylla_gen_build_dir}/utils/gz/crc_combine_table.cc"
-    COMMAND $<TARGET_FILE:crc_combine_table> > "${scylla_gen_build_dir}/utils/gz/crc_combine_table.cc"
-    DEPENDS crc_combine_table)
-target_sources(scylla PRIVATE "${scylla_gen_build_dir}/utils/gz/crc_combine_table.cc")
 
 ###
 ### Generate version file and supply appropriate compile definitions for release.cc
