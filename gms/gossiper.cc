@@ -52,6 +52,7 @@ static logging::logger logger("gossip");
 constexpr std::chrono::milliseconds gossiper::INTERVAL;
 constexpr std::chrono::hours gossiper::A_VERY_LONG_TIME;
 constexpr int64_t gossiper::MAX_GENERATION_DIFFERENCE;
+constexpr size_t gossiper::MAX_PENDING_APPLIES;
 
 netw::msg_addr gossiper::get_msg_addr(inet_address to) const noexcept {
     return msg_addr{to, _default_cpuid};
@@ -644,6 +645,10 @@ future<> gossiper::apply_state_locally(std::map<inet_address, endpoint_state> ma
         }
         if (_just_removed_endpoints.contains(ep)) {
             logger.trace("Ignoring gossip for {} because it is quarantined", ep);
+            return make_ready_future<>();
+        }
+        if (_apply_state_locally_semaphore.waiters() > gossiper::MAX_PENDING_APPLIES) {
+            logger.debug("Dropping gossiper state because of overload");
             return make_ready_future<>();
         }
         return seastar::with_semaphore(_apply_state_locally_semaphore, 1, [this, &ep, &map] () mutable {

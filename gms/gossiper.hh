@@ -186,6 +186,12 @@ public:
     // value this node would get if this node were restarted that we are
     // willing to accept about a peer.
     static constexpr int64_t MAX_GENERATION_DIFFERENCE = 86400 * 365;
+
+    // Maximum number of waiters on _apply_state_locally_semaphore.
+    // Unbounded number of pending tasks can exhaust memory of the node.
+    // See https://github.com/scylladb/scylladb/issues/10967
+    static constexpr size_t MAX_PENDING_APPLIES = 10000;
+
     std::chrono::milliseconds fat_client_timeout;
 
     std::chrono::milliseconds quarantine_delay() const noexcept;
