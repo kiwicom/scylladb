@@ -300,6 +300,12 @@ future<> gossiper::handle_ack_msg(msg_addr id, gossip_digest_ack ack_msg) {
     });
 
     auto f = make_ready_future<>();
+
+    if (this->_apply_state_locally_semaphore.waiters() + ep_state_map.size() > gossiper::MAX_PENDING_APPLIES) {
+        logger.debug("Dropping gossiper state because of overload");
+        return f;
+    }
+
     if (ep_state_map.size() > 0) {
         update_timestamp_for_nodes(ep_state_map);
         f = this->apply_state_locally(std::move(ep_state_map));
@@ -639,16 +645,17 @@ future<> gossiper::apply_state_locally(std::map<inet_address, endpoint_state> ma
     boost::partition(endpoints, node_is_seed);
     logger.debug("apply_state_locally_endpoints={}", endpoints);
 
+    if (_apply_state_locally_semaphore.waiters() + map.size() > gossiper::MAX_PENDING_APPLIES) {
+        logger.debug("Dropping gossiper state because of overload");
+        co_return;
+    }
+
     co_await coroutine::parallel_for_each(endpoints, [this, &map] (auto&& ep) -> future<> {
         if (ep == this->get_broadcast_address() && !this->is_in_shadow_round()) {
             return make_ready_future<>();
         }
         if (_just_removed_endpoints.contains(ep)) {
             logger.trace("Ignoring gossip for {} because it is quarantined", ep);
-            return make_ready_future<>();
-        }
-        if (_apply_state_locally_semaphore.waiters() > gossiper::MAX_PENDING_APPLIES) {
-            logger.debug("Dropping gossiper state because of overload");
             return make_ready_future<>();
         }
         return seastar::with_semaphore(_apply_state_locally_semaphore, 1, [this, &ep, &map] () mutable {
