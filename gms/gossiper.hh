@@ -78,6 +78,10 @@ struct gossip_config {
     sstring partitioner;
     uint32_t ring_delay_ms = 30 * 1000;
     uint32_t shadow_round_ms = 300 * 1000;
+    // Maximum number of waiters on _apply_state_locally_semaphore.
+    // Unbounded number of pending tasks can exhaust memory of the node.
+    // See https://github.com/scylladb/scylladb/issues/10967
+    uint32_t max_pending_applies = 10000;
     uint32_t shutdown_announce_ms = 2 * 1000;
     uint32_t skip_wait_for_gossip_to_settle = -1;
 };
@@ -187,9 +191,7 @@ public:
     // willing to accept about a peer.
     static constexpr int64_t MAX_GENERATION_DIFFERENCE = 86400 * 365;
 
-    // Maximum number of waiters on _apply_state_locally_semaphore.
-    // Unbounded number of pending tasks can exhaust memory of the node.
-    // See https://github.com/scylladb/scylladb/issues/10967
+
     static constexpr size_t MAX_PENDING_APPLIES = 10000;
 
     std::chrono::milliseconds fat_client_timeout;

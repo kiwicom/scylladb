@@ -305,6 +305,7 @@ public:
     named_value<sstring> allowed_repair_based_node_ops;
     named_value<uint32_t> ring_delay_ms;
     named_value<uint32_t> shadow_round_ms;
+    named_value<uint32_t> max_pending_applies;
     named_value<uint32_t> fd_max_interval_ms;
     named_value<uint32_t> fd_initial_value_ms;
     named_value<uint32_t> shutdown_announce_in_ms;

@@ -52,7 +52,6 @@ static logging::logger logger("gossip");
 constexpr std::chrono::milliseconds gossiper::INTERVAL;
 constexpr std::chrono::hours gossiper::A_VERY_LONG_TIME;
 constexpr int64_t gossiper::MAX_GENERATION_DIFFERENCE;
-constexpr size_t gossiper::MAX_PENDING_APPLIES;
 
 netw::msg_addr gossiper::get_msg_addr(inet_address to) const noexcept {
     return msg_addr{to, _default_cpuid};
@@ -301,7 +300,7 @@ future<> gossiper::handle_ack_msg(msg_addr id, gossip_digest_ack ack_msg) {
 
     auto f = make_ready_future<>();
 
-    if (this->_apply_state_locally_semaphore.waiters() + ep_state_map.size() > gossiper::MAX_PENDING_APPLIES) {
+    if (_gcfg.max_pending_applies > 0 && this->_apply_state_locally_semaphore.waiters() + ep_state_map.size() > _gcfg.max_pending_applies) {
         logger.debug("Dropping gossiper state because of overload");
         return f;
     }
@@ -645,7 +644,7 @@ future<> gossiper::apply_state_locally(std::map<inet_address, endpoint_state> ma
     boost::partition(endpoints, node_is_seed);
     logger.debug("apply_state_locally_endpoints={}", endpoints);
 
-    if (_apply_state_locally_semaphore.waiters() + map.size() > gossiper::MAX_PENDING_APPLIES) {
+    if (_gcfg.max_pending_applies > 0 && _apply_state_locally_semaphore.waiters() + map.size() > _gcfg.max_pending_applies) {
         logger.debug("Dropping gossiper state because of overload");
         co_return;
     }
